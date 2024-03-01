@@ -47,7 +47,7 @@ class CarController(CarControllerBase):
       else:
         apply_steer_req = CC.latActive
 
-        if self.CP.flags & SubaruFlags.STEER_RATE_LIMITED:
+        if self.CP.flags & SubaruFlags.NEW_EPS_LIMITS:
           # Steering rate fault prevention
           self.steer_rate_counter, apply_steer_req = \
             common_fault_avoidance(abs(CS.out.steeringRateDeg) > MAX_STEER_RATE, apply_steer_req,

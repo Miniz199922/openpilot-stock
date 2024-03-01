@@ -19,11 +19,11 @@ class CarControllerParams:
     self.STEER_DRIVER_MULTIPLIER = 50  # weight driver torque heavily
     self.STEER_DRIVER_FACTOR = 1       # from dbc
 
-    if CP.flags & SubaruFlags.GLOBAL_GEN2:
+    if (CP.flags & SubaruFlags.GLOBAL_GEN2) == SubaruFlags.GLOBAL_GEN2:
       self.STEER_MAX = 1000
       self.STEER_DELTA_UP = 40
       self.STEER_DELTA_DOWN = 40
-    elif CP.carFingerprint == CAR.IMPREZA_2020:
+    elif CP.flags & SubaruFlags.NEW_EPS_LIMITS:
       self.STEER_MAX = 1439
     else:
       self.STEER_MAX = 2047
@@ -58,14 +58,19 @@ class SubaruFlags(IntFlag):
   DISABLE_EYESIGHT = 2
 
   # Static flags
-  GLOBAL_GEN2 = 4
+  POWERTRAIN_ALT_BUS = 4
 
-  # Cars that temporarily fault when steering angle rate is greater than some threshold.
+  # Cars with a new EPS firmware that:
+  #  - temporarily faults when steering angle rate is greater than some threshold.
+  #  - has higher torque for the same ES_LKAS -> LKAS_Request value
   # Appears to be all torque-based cars produced around 2019 - present
-  STEER_RATE_LIMITED = 8
+  NEW_EPS_LIMITS = 8
+
   PREGLOBAL = 16
   HYBRID = 32
   LKAS_ANGLE = 64
+
+  GLOBAL_GEN2 = POWERTRAIN_ALT_BUS | NEW_EPS_LIMITS
 
 
 GLOBAL_ES_ADDR = 0x787
@@ -114,8 +119,6 @@ class SubaruGen2PlatformConfig(SubaruPlatformConfig):
   def init(self):
     super().init()
     self.flags |= SubaruFlags.GLOBAL_GEN2
-    if not (self.flags & SubaruFlags.LKAS_ANGLE):
-      self.flags |= SubaruFlags.STEER_RATE_LIMITED
 
 
 class CAR(Platforms):
@@ -152,7 +155,7 @@ class CAR(Platforms):
       SubaruCarInfo("Subaru XV 2020-21"),
     ],
     specs=CarSpecs(mass=1480, wheelbase=2.67, steerRatio=17),
-    flags=SubaruFlags.STEER_RATE_LIMITED,
+    flags=SubaruFlags.NEW_EPS_LIMITS,
   )
   # TODO: is there an XV and Impreza too?
   CROSSTREK_HYBRID = SubaruPlatformConfig(
@@ -165,7 +168,7 @@ class CAR(Platforms):
     "SUBARU FORESTER 2019",
     SubaruCarInfo("Subaru Forester 2019-21", "All"),
     specs=CarSpecs(mass=1568, wheelbase=2.67, steerRatio=17),
-    flags=SubaruFlags.STEER_RATE_LIMITED,
+    flags=SubaruFlags.NEW_EPS_LIMITS,
   )
   FORESTER_HYBRID = SubaruPlatformConfig(
     "SUBARU FORESTER HYBRID 2020",
@@ -209,13 +212,13 @@ class CAR(Platforms):
     specs=FORESTER.specs,
     flags=SubaruFlags.LKAS_ANGLE,
   )
-  OUTBACK_2023 = SubaruGen2PlatformConfig(
+  OUTBACK_2023 = SubaruPlatformConfig(
     "SUBARU OUTBACK 7TH GEN",
     SubaruCarInfo("Subaru Outback 2023", "All", car_parts=CarParts.common([CarHarness.subaru_d])),
     specs=OUTBACK.specs,
     flags=SubaruFlags.LKAS_ANGLE,
   )
-  ASCENT_2023 = SubaruGen2PlatformConfig(
+  ASCENT_2023 = SubaruPlatformConfig(
     "SUBARU ASCENT 2023",
     SubaruCarInfo("Subaru Ascent 2023", "All", car_parts=CarParts.common([CarHarness.subaru_d])),
     specs=ASCENT.specs,
@@ -257,9 +260,9 @@ FW_QUERY_CONFIG = FwQueryConfig(
       obd_multiplexing=False,
     ),
   ],
-  # We don't get the EPS from non-OBD queries on GEN2 cars. Note that we still attempt to match when it exists
+  # We don't get the EPS from non-OBD queries on POWERTRAIN_ALT_BUS cars. Note that we still attempt to match when it exists
   non_essential_ecus={
-    Ecu.eps: list(CAR.with_flags(SubaruFlags.GLOBAL_GEN2)),
+    Ecu.eps: list(CAR.with_flags(SubaruFlags.POWERTRAIN_ALT_BUS)),
   }
 )
 
